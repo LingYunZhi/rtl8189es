@@ -4850,10 +4850,7 @@ static int rtw_p2p_get_device_type(struct net_device *dev,
 				rtw_get_wps_attr_content(wpsie, wpsie_len, WPS_ATTR_PRIMARY_DEV_TYPE, dev_type, &dev_type_len);
 				if (dev_type_len)
 				{
-					u16	type = 0;
-
-					memcpy(&type, dev_type, 2);
-					type = be16_to_cpu(type);
+					u16	type = RTW_RL16(dev_type);
 					sprintf(dev_type_str, "\n\nN=%.2d", type);
 					blnMatch = 1;
 				}
