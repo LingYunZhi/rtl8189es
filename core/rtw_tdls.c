@@ -1187,7 +1187,7 @@ sint On_TDLS_Setup_Req(_adapter *adapter, union recv_frame *precv_frame)
 						prsnie=(u8*)pIE;
 						//check whether initiator STA has CCMP pairwise_cipher.
 						ppairwise_cipher=prsnie+10;
-						memcpy(&pairwise_count, (u16*)(ppairwise_cipher-2), 1);
+						pairwise_count = RTW_RN16(ppairwise_cipher-2);
 						for(k=0;k<pairwise_count;k++){
 							if(RTW_RN32(ppairwise_cipher+4*k) == RSN_CIPHER_SUITE_CCMP) {
 								ccmp_have=1;
@@ -1266,7 +1266,7 @@ sint On_TDLS_Setup_Req(_adapter *adapter, union recv_frame *precv_frame)
 		ptdls_sta->tdls_sta_state|= TDLS_INITIATOR_STATE;
 		if(prx_pkt_attrib->encrypt){
 			memcpy(ptdls_sta->SNonce, SNonce, 32);
-			memcpy(&(ptdls_sta->TDLS_PeerKey_Lifetime), timeout_interval, 4);
+			ptdls_sta->TDLS_PeerKey_Lifetime = RTW_RN32(timeout_interval);
 		}
 		_enter_critical_bh(&(pstapriv->sta_hash_lock), &irqL);
 		if(!(ptdls_sta->tdls_sta_state & TDLS_LINKED_STATE))
@@ -1340,7 +1340,7 @@ sint On_TDLS_Setup_Rsp(_adapter *adapter, union recv_frame *precv_frame)
 			-1
 			-FIXED_IE;
 
-	memcpy(&stat_code, ptr+2, 2);
+	stat_code = RTW_RN16(ptr + 2);
 
 	if(stat_code!=0)
 	{
@@ -1377,7 +1377,7 @@ sint On_TDLS_Setup_Rsp(_adapter *adapter, union recv_frame *precv_frame)
 				prsnie=(u8*)pIE;
 				//check whether responder STA has CCMP pairwise_cipher.
 				ppairwise_cipher=prsnie+10;
-				memcpy(&pairwise_count, (u16*)(ppairwise_cipher-2), 2);
+				pairwise_count = RTW_RN16(ppairwise_cipher - 2);
 				for(k=0;k<pairwise_count;k++){
 					if(RTW_RN32(ppairwise_cipher+4*k) == RSN_CIPHER_SUITE_CCMP) {
 						verify_ccmp=1;
@@ -1507,7 +1507,7 @@ sint On_TDLS_Setup_Cfm(_adapter *adapter, union recv_frame *precv_frame)
 			-ETH_TYPE_LEN
 			-PAYLOAD_TYPE_LEN
 			-FIXED_IE;
-	memcpy(&stat_code, ptr+2, 2);
+	stat_code = RTW_RN16(ptr + 2);
 
 	if(stat_code!=0){
 		DBG_871X( "[%s] stat_code = %d\n, free_tdls_sta", __FUNCTION__, stat_code );
@@ -1810,8 +1810,8 @@ sint On_TDLS_Ch_Switch_Req(_adapter *adapter, union recv_frame *precv_frame)
  			case _LINK_ID_IE_:
 				break;
 			case _CH_SWITCH_TIMING_:
-				memcpy(&ptdls_sta->ch_switch_time, pIE->data, 2);
-				memcpy(&ptdls_sta->ch_switch_timeout, pIE->data+2, 2);
+				ptdls_sta->ch_switch_time = RTW_RN16(pIE->data);
+				ptdls_sta->ch_switch_timeout = RTW_RN16(pIE->data + 2);
 			default:
 				break;
 		}
@@ -1885,7 +1885,7 @@ sint On_TDLS_Ch_Switch_Rsp(_adapter *adapter, union recv_frame *precv_frame)
 			-PAYLOAD_TYPE_LEN
 			-FIXED_IE;
 
-	memcpy(&stat_code, ptr+2, 2);
+	stat_code = RTW_RN16(ptr + 2);
 
 	if(stat_code!=0){
 		return _FAIL;
@@ -1901,13 +1901,13 @@ sint On_TDLS_Ch_Switch_Rsp(_adapter *adapter, union recv_frame *precv_frame)
  			case _LINK_ID_IE_:
 				break;
 			case _CH_SWITCH_TIMING_:
-				memcpy(&switch_time, pIE->data, 2);
+				switch_time = RTW_RN16(pIE->data);
 				if(switch_time > ptdls_sta->ch_switch_time)
-					memcpy(&ptdls_sta->ch_switch_time, &switch_time, 2);
+					ptdls_sta->ch_switch_time = switch_time;
 
-				memcpy(&switch_timeout, pIE->data+2, 2);
+				switch_timeout = RTW_RN16(pIE->data + 2);
 				if(switch_timeout > ptdls_sta->ch_switch_timeout)
-					memcpy(&ptdls_sta->ch_switch_timeout, &switch_timeout, 2);
+					ptdls_sta->ch_switch_timeout = switch_timeout;
 
 			default:
 				break;
@@ -2041,7 +2041,7 @@ void rtw_build_tdls_setup_req_ies(_adapter * padapter, struct xmit_frame * pxmit
 	if(pattrib->encrypt){
 		for(i=0;i<8;i++){
 			time=rtw_get_current_time();
-			memcpy(&ptdls_sta->SNonce[4*i], (u8 *)&time, 4);
+			RTW_WN32(&ptdls_sta->SNonce[4*i], time);
 		}
 	}
 
@@ -2100,15 +2100,15 @@ void rtw_build_tdls_setup_req_ies(_adapter * padapter, struct xmit_frame * pxmit
 	if(pattrib->encrypt){
 		//FTIE
 		memset(pframe, 0, 84);	//All fields except SNonce shall be set to 0
-		memset(pframe, _FTIE_, 1);	//version
-		memset((pframe+1), 82, 1);	//length
+		pframe[0] = _FTIE_;	//version
+		pframe[1] = 82;		//length
 		memcpy((pframe+52), ptdls_sta->SNonce, 32);
 		pframe += 84;
 		pattrib->pktlen += 84;
 
 		//Timeout interval
 		timeout_itvl[0]=0x02;
-		memcpy(timeout_itvl+1, (u8 *)(&ptdls_sta->TDLS_PeerKey_Lifetime), 4);
+		RTW_WN32(timeout_itvl + 1, ptdls_sta->TDLS_PeerKey_Lifetime);
 		pframe = rtw_set_ie(pframe, _TIMEOUT_ITVL_IE_, 5, timeout_itvl,  &(pattrib->pktlen));
 	}
 
@@ -2169,7 +2169,7 @@ void rtw_build_tdls_setup_rsp_ies(_adapter * padapter, struct xmit_frame * pxmit
 	if(pattrib->encrypt){
 		for(k=0;k<8;k++){
 			time=rtw_get_current_time();
-			memcpy(&ptdls_sta->ANonce[4*k], (u8*)&time, 4);
+			RTW_WN32(&ptdls_sta->ANonce[4*k], time);
 		}
 	}
 
@@ -2242,8 +2242,8 @@ void rtw_build_tdls_setup_rsp_ies(_adapter * padapter, struct xmit_frame * pxmit
 		pftie = pframe;
 		pftie_mic = pframe+4;
 		memset(pframe, 0, 84);	//All fields except SNonce shall be set to 0
-		memset(pframe, _FTIE_, 1);	//version
-		memset((pframe+1), 82, 1);	//length
+		pframe[0] = _FTIE_;	//version
+		pframe[1] = 82;		//length
 		memcpy((pframe+20), ptdls_sta->ANonce, 32);
 		memcpy((pframe+52), ptdls_sta->SNonce, 32);
 		pframe += 84;
@@ -2252,7 +2252,7 @@ void rtw_build_tdls_setup_rsp_ies(_adapter * padapter, struct xmit_frame * pxmit
 		//Timeout interval
 		ptimeout_ie = pframe;
 		timeout_itvl[0]=0x02;
-		memcpy(timeout_itvl+1, (u8 *)(&ptdls_sta->TDLS_PeerKey_Lifetime), 4);
+		RTW_WN32(timeout_itvl+1, ptdls_sta->TDLS_PeerKey_Lifetime);
 		pframe = rtw_set_ie(pframe, _TIMEOUT_ITVL_IE_, 5, timeout_itvl,  &(pattrib->pktlen));
 	}
 
@@ -2324,8 +2324,8 @@ void rtw_build_tdls_setup_cfm_ies(_adapter * padapter, struct xmit_frame * pxmit
 		pftie = pframe;
 		pftie_mic = pframe+4;
 		memset(pframe, 0, 84);	//All fields except SNonce shall be set to 0
-		memset(pframe, _FTIE_, 1);	//version
-		memset((pframe+1), 82, 1);	//length
+		pframe[0] = _FTIE_;	//version
+		pframe[1] = 82;		//length
 		memcpy((pframe+20), ptdls_sta->ANonce, 32);
 		memcpy((pframe+52), ptdls_sta->SNonce, 32);
 		pframe += 84;
@@ -2334,7 +2334,7 @@ void rtw_build_tdls_setup_cfm_ies(_adapter * padapter, struct xmit_frame * pxmit
 		//Timeout interval
 		ptimeout_ie = pframe;
 		timeout_itvl[0]=0x02;
-		memcpy(timeout_itvl+1, (u8 *)(&ptdls_sta->TDLS_PeerKey_Lifetime), 4);
+		RTW_WN32(timeout_itvl+1, ptdls_sta->TDLS_PeerKey_Lifetime);
 		ptdls_sta->TPK_count=0;
 		_set_timer(&ptdls_sta->TPK_timer, ptdls_sta->TDLS_PeerKey_Lifetime/TPK_RESEND_COUNT);
 		pframe = rtw_set_ie(pframe, _TIMEOUT_ITVL_IE_, 5, timeout_itvl,  &(pattrib->pktlen));
@@ -2477,14 +2477,14 @@ void rtw_build_tdls_dis_rsp_ies(_adapter * padapter, struct xmit_frame * pxmitfr
 	if(pattrib->encrypt){
 		//FTIE
 		memset(pframe, 0, 84);	//All fields shall be set to 0
-		memset(pframe, _FTIE_, 1);	//version
-		memset((pframe+1), 82, 1);	//length
+		pframe[0] = _FTIE_;	//version
+		pframe[1] = 82;		//length
 		pframe += 84;
 		pattrib->pktlen += 84;
 
 		//Timeout interval
 		timeout_itvl[0]=0x02;
-		memcpy(timeout_itvl+1, &timeout_interval, 4);
+		RTW_WN32(timeout_itvl+1, timeout_interval);
 		pframe = rtw_set_ie(pframe, _TIMEOUT_ITVL_IE_, 5, timeout_itvl,  &(pattrib->pktlen));
 	}
 
@@ -2573,8 +2573,8 @@ void rtw_build_tdls_ch_switch_req_ies(_adapter * padapter, struct xmit_frame * p
 	pframe = rtw_set_ie(pframe, _LINK_ID_IE_,  18, link_id_addr, &(pattrib->pktlen));
 
 	//ch switch timing
-	memcpy(ch_switch_timing, &switch_time, 2);
-	memcpy(ch_switch_timing+2, &switch_timeout, 2);
+	RTW_WN16(ch_switch_timing, switch_time);
+	RTW_WN16(ch_switch_timing+2, switch_timeout);
 	pframe = rtw_set_ie(pframe, _CH_SWITCH_TIMING_,  4, ch_switch_timing, &(pattrib->pktlen));
 
 	//update ch switch attrib to sta_info
@@ -2612,8 +2612,8 @@ void rtw_build_tdls_ch_switch_rsp_ies(_adapter * padapter, struct xmit_frame * p
 	pframe = rtw_set_ie(pframe, _LINK_ID_IE_,  18, link_id_addr, &(pattrib->pktlen));
 
 	//ch switch timing
-	memcpy(ch_switch_timing, &ptdls_sta->ch_switch_time, 2);
-	memcpy(ch_switch_timing+2, &ptdls_sta->ch_switch_timeout, 2);
+	RTW_WN16(ch_switch_timing, ptdls_sta->ch_switch_time);
+	RTW_WN16(ch_switch_timing+2, ptdls_sta->ch_switch_timeout);
 	pframe = rtw_set_ie(pframe, _CH_SWITCH_TIMING_,  4, ch_switch_timing, &(pattrib->pktlen));
 
 }
