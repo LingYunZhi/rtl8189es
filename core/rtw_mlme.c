@@ -452,12 +452,6 @@ _func_exit_;
 	return;
 }
 
-u8 *rtw_get_capability_from_ie(u8 *ie)
-{
-	return (ie + 8 + 2);
-}
-
-
 u16 rtw_get_capability(WLAN_BSSID_EX *bss)
 {
 	u16	val;
@@ -468,17 +462,6 @@ _func_enter_;
 _func_exit_;
 	return le16_to_cpu(val);
 }
-
-u8 *rtw_get_timestampe_from_ie(u8 *ie)
-{
-	return (ie + 0);
-}
-
-u8 *rtw_get_beacon_interval_from_ie(u8 *ie)
-{
-	return (ie + 8);
-}
-
 
 int	rtw_init_mlme_priv (_adapter *padapter)//(struct	mlme_priv *pmlmepriv)
 {

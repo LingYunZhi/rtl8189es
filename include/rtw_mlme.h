@@ -810,10 +810,20 @@ extern sint rtw_if_up(_adapter *padapter);
 
 sint rtw_linked_check(_adapter *padapter);
 
-u8 *rtw_get_capability_from_ie(u8 *ie);
-u8 *rtw_get_timestampe_from_ie(u8 *ie);
-u8 *rtw_get_beacon_interval_from_ie(u8 *ie);
+static inline u8 *rtw_get_capability_from_ie(u8 *ie)
+{
+	return (ie + 8 + 2);
+}
 
+static inline u8 *rtw_get_timestampe_from_ie(u8 *ie)
+{
+	return (ie + 0);
+}
+
+static inline u8 *rtw_get_beacon_interval_from_ie(u8 *ie)
+{
+	return (ie + 8);
+}
 
 void rtw_joinbss_reset(_adapter *padapter);
 
