@@ -100,9 +100,6 @@ struct wme_parameter_element {
 
 } __attribute__ ((packed));
 
-#define RSN_SELECTOR_PUT(a, val) RTW_WB32((u8 *) (a), (val))
-//#define RSN_SELECTOR_PUT(a, val) RTW_WL32((u8 *) (a), (val))
-
 /* Action category code */
 enum ieee80211_category {
 	WLAN_CATEGORY_SPECTRUM_MGMT = 0,
