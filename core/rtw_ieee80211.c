@@ -1824,13 +1824,7 @@ int ieee80211_is_empty_essid(const char *essid, int essid_len)
 		return 1;
 
 	/* Otherwise, if the entire essid is 0, we assume it is hidden */
-	while (essid_len) {
-		essid_len--;
-		if (essid[essid_len] != '\0')
-			return 0;
-	}
-
-	return 1;
+	return !memchr_inv(essid, 0, essid_len);
 }
 
 int ieee80211_get_hdrlen(u16 fc)
