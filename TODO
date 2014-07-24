@@ -1,0 +1,7 @@
+TODO:
+- find and remove any code for other chips that is left over
+- convert any remaining unusual variable types
+- find codes that can use %pM and %Nph formatting
+- merge Realtek's bugfixes and new features into the driver
+- switch to use LIB80211
+- switch to use MAC80211
