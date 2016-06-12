@@ -255,20 +255,10 @@ _func_enter_;
 	if (shift == 0) {
 		val = _sd_read32(pintfhdl, ftaddr, NULL);
 	} else {
-		u8 *ptmpbuf;
+		u8 ptmpbuf[8];
 
-		ptmpbuf = (u8*)rtw_malloc(8);
-		if (NULL == ptmpbuf) {
-			DBG_871X(KERN_ERR "%s: Allocate memory FAIL!(size=8) addr=0x%x\n", __func__, addr);
-			return SDIO_ERR_VAL32;
-		}
-
-		ftaddr &= ~(u16)0x3;
-		_sd_read(pintfhdl, ftaddr, 8, ptmpbuf);
-		memcpy(&val, ptmpbuf+shift, 4);
-		val = le32_to_cpu(val);
-
-		rtw_mfree(ptmpbuf, 8);
+		_sd_read(pintfhdl, ftaddr - shift, 8, ptmpbuf);
+		val = RTW_RL32(ptmpbuf + shift);
 	}
 
 _func_exit_;
@@ -320,18 +310,10 @@ _func_enter_;
 	if (shift == 0) {
 		val = sd_read32(pintfhdl, ftaddr, NULL);
 	} else {
-		u8 *ptmpbuf;
+		u8 ptmpbuf[8];
 
-		ptmpbuf = (u8*)rtw_malloc(8);
-		if (NULL == ptmpbuf) {
-			DBG_871X(KERN_ERR "%s: Allocate memory FAIL!(size=8) addr=0x%x\n", __func__, addr);
-			return SDIO_ERR_VAL32;
-		}
-
-		ftaddr &= ~(u16)0x3;
-		sd_read(pintfhdl, ftaddr, 8, ptmpbuf);
-		memcpy(&val, ptmpbuf+shift, 4);
-		val = le32_to_cpu(val);
+		sd_read(pintfhdl, ftaddr - shift, 8, ptmpbuf);
+		val = RTW_RL32(ptmpbuf + shift);
 
 		rtw_mfree(ptmpbuf, 8);
 	}
@@ -378,13 +360,17 @@ _func_enter_;
 		u8 *ptmpbuf;
 		u32 n;
 
-		ftaddr &= ~(u16)0x3;
 		n = cnt + shift;
 		ptmpbuf = rtw_malloc(n);
-		if (NULL == ptmpbuf) return -1;
-		err = sd_read(pintfhdl, ftaddr, n, ptmpbuf);
+		if (NULL == ptmpbuf) {
+			DBG_871X(KERN_ERR "%s: Allocate memory FAIL!(size=%d) addr=0x%x\n", __func__, n, addr);
+			return -1;
+		}
+
+		err = sd_read(pintfhdl, ftaddr - shift, n, ptmpbuf);
 		if (!err)
-			memcpy(pbuf, ptmpbuf+shift, cnt);
+			memcpy(pbuf, ptmpbuf + shift, cnt);
+
 		rtw_mfree(ptmpbuf, n);
 	}
 
@@ -470,22 +456,13 @@ _func_enter_;
 	if (shift == 0) {
 		sd_write32(pintfhdl, ftaddr, val, &err);
 	} else {
-		u8 *ptmpbuf;
+		u8 ptmpbuf[8];
 
-		ptmpbuf = (u8*)rtw_malloc(8);
-		if (NULL == ptmpbuf) return (-1);
-
-		ftaddr &= ~(u16)0x3;
-		err = sd_read(pintfhdl, ftaddr, 8, ptmpbuf);
-		if (err) {
-			rtw_mfree(ptmpbuf, 8);
-			return err;
+		err = sd_read(pintfhdl, ftaddr - shift, 8, ptmpbuf);
+		if (!err) {
+			RTW_WL32(ptmpbuf + shift, val);
+			err = sd_write(pintfhdl, ftaddr - shift, 8, ptmpbuf);
 		}
-		val = cpu_to_le32(val);
-		memcpy(ptmpbuf+shift, &val, 4);
-		err = sd_write(pintfhdl, ftaddr, 8, ptmpbuf);
-
-		rtw_mfree(ptmpbuf, 8);
 	}
 #endif
 
@@ -541,22 +518,13 @@ _func_enter_;
 	if (shift == 0) {
 		sd_write32(pintfhdl, ftaddr, val, &err);
 	} else {
-		u8 *ptmpbuf;
+		u8 ptmpbuf[8];
 
-		ptmpbuf = (u8*)rtw_malloc(8);
-		if (NULL == ptmpbuf) return (-1);
-
-		ftaddr &= ~(u16)0x3;
-		err = sd_read(pintfhdl, ftaddr, 8, ptmpbuf);
-		if (err) {
-			rtw_mfree(ptmpbuf, 8);
-			return err;
+		err = sd_read(pintfhdl, ftaddr - shift, 8, ptmpbuf);
+		if (!err) {
+			RTW_WL32(ptmpbuf + shift, val);
+			err = sd_write(pintfhdl, ftaddr - shift, 8, ptmpbuf);
 		}
-		val = cpu_to_le32(val);
-		memcpy(ptmpbuf+shift, &val, 4);
-		err = sd_write(pintfhdl, ftaddr, 8, ptmpbuf);
-
-		rtw_mfree(ptmpbuf, 8);
 	}
 #endif
 
@@ -601,18 +569,21 @@ _func_enter_;
 		u8 *ptmpbuf;
 		u32 n;
 
-		ftaddr &= ~(u16)0x3;
 		n = cnt + shift;
 		ptmpbuf = rtw_malloc(n);
-		if (NULL == ptmpbuf) return -1;
-		err = sd_read(pintfhdl, ftaddr, 4, ptmpbuf);
-		if (err) {
-			rtw_mfree(ptmpbuf, n);
-			return err;
+		if (NULL == ptmpbuf) {
+			DBG_871X(KERN_ERR "%s: Allocate memory FAIL!(size=%d) addr=0x%x\n", __func__, n, addr);
+			return -1;
 		}
-		memcpy(ptmpbuf+shift, pbuf, cnt);
-		err = sd_write(pintfhdl, ftaddr, n, ptmpbuf);
+
+		err = sd_read(pintfhdl, ftaddr - shift, n, ptmpbuf);
+		if (!err) {
+			memcpy(ptmpbuf + shift, pbuf, cnt);
+			err = sd_write(pintfhdl, ftaddr - shift, n, ptmpbuf);
+		}
+
 		rtw_mfree(ptmpbuf, n);
+		return err;
 	}
 
 _func_exit_;
@@ -774,8 +745,6 @@ s32 _sdio_local_read(
 	struct intf_hdl * pintfhdl;
 	u8 bMacPwrCtrlOn;
 	s32 err;
-	u8 *ptmpbuf;
-	u32 n;
 
 	pintfhdl=&padapter->iopriv.intf;
 
@@ -792,18 +761,22 @@ s32 _sdio_local_read(
 		return err;
 	}
 
-    n = _RND4(cnt);
-	ptmpbuf = (u8*)rtw_malloc(n);
-	if(!ptmpbuf)
-		return (-1);
+	if (!((size_t)pbuf & 3) && !(cnt & 3)) {
+		err = _sd_read(pintfhdl, addr, cnt, pbuf);
+	} else {
+		u8 *ptmpbuf;
+		u32 n = _RND4(cnt);
 
-	err = _sd_read(pintfhdl, addr, n, ptmpbuf);
-	if (!err)
-		memcpy(pbuf, ptmpbuf, cnt);
+		ptmpbuf = (u8*)rtw_malloc(n);
+		if(!ptmpbuf)
+			return (-1);
 
-	if(ptmpbuf)
+		err = _sd_read(pintfhdl, addr, n, ptmpbuf);
+		if (!err)
+			memcpy(pbuf, ptmpbuf, cnt);
+
 		rtw_mfree(ptmpbuf, n);
-
+	}
 	return err;
 }
 
@@ -819,8 +792,6 @@ s32 sdio_local_read(
 	struct intf_hdl * pintfhdl;
 	u8 bMacPwrCtrlOn;
 	s32 err;
-	u8 *ptmpbuf;
-	u32 n;
 
 	pintfhdl=&padapter->iopriv.intf;
 
@@ -837,18 +808,22 @@ s32 sdio_local_read(
 		return err;
 	}
 
-    n = _RND4(cnt);
-	ptmpbuf = (u8*)rtw_malloc(n);
-	if(!ptmpbuf)
-		return (-1);
+	if (!((size_t)pbuf & 3) && !(cnt & 3)) {
+		err = sd_read(pintfhdl, addr, cnt, pbuf);
+	} else {
+		u8 *ptmpbuf;
+		u32 n = _RND4(cnt);
 
-	err = sd_read(pintfhdl, addr, n, ptmpbuf);
-	if (!err)
-		memcpy(pbuf, ptmpbuf, cnt);
+		ptmpbuf = (u8*)rtw_malloc(n);
+		if(!ptmpbuf)
+			return (-1);
 
-	if(ptmpbuf)
+		err = sd_read(pintfhdl, addr, n, ptmpbuf);
+		if (!err)
+			memcpy(pbuf, ptmpbuf, cnt);
+
 		rtw_mfree(ptmpbuf, n);
-
+	}
 	return err;
 }
 
@@ -864,7 +839,6 @@ s32 _sdio_local_write(
 	struct intf_hdl * pintfhdl;
 	u8 bMacPwrCtrlOn;
 	s32 err;
-	u8 *ptmpbuf;
 
 	if(addr & 0x3)
 		DBG_8192C("%s, address must be 4 bytes alignment\n", __FUNCTION__);
@@ -887,17 +861,21 @@ s32 _sdio_local_write(
 		return err;
 	}
 
-        ptmpbuf = (u8*)rtw_malloc(cnt);
-	if(!ptmpbuf)
-		return (-1);
+	if (!((size_t)pbuf & 3)) {
+		err = _sd_write(pintfhdl, addr, cnt, pbuf);
+	} else {
+		u8 *ptmpbuf;
 
-	memcpy(ptmpbuf, pbuf, cnt);
+		ptmpbuf = (u8*)rtw_malloc(cnt);
+		if(!ptmpbuf)
+			return (-1);
 
-	err = _sd_write(pintfhdl, addr, cnt, ptmpbuf);
+		memcpy(ptmpbuf, pbuf, cnt);
 
-	if (ptmpbuf)
+		err = _sd_write(pintfhdl, addr, cnt, ptmpbuf);
+
 		rtw_mfree(ptmpbuf, cnt);
-
+	}
 	return err;
 }
 
@@ -914,7 +892,6 @@ s32 sdio_local_write(
 	struct intf_hdl * pintfhdl;
 	u8 bMacPwrCtrlOn;
 	s32 err;
-	u8 *ptmpbuf;
 
 	if(addr & 0x3)
 		DBG_8192C("%s, address must be 4 bytes alignment\n", __FUNCTION__);
@@ -936,17 +913,21 @@ s32 sdio_local_write(
 		return err;
 	}
 
-        ptmpbuf = (u8*)rtw_malloc(cnt);
-	if(!ptmpbuf)
-		return (-1);
+	if (!((size_t)pbuf & 3)) {
+		err = sd_write(pintfhdl, addr, cnt, pbuf);
+	} else {
+		u8 *ptmpbuf;
 
-	memcpy(ptmpbuf, pbuf, cnt);
+		ptmpbuf = (u8*)rtw_malloc(cnt);
+		if(!ptmpbuf)
+			return (-1);
 
-	err = sd_write(pintfhdl, addr, cnt, ptmpbuf);
+		memcpy(ptmpbuf, pbuf, cnt);
 
-	if (ptmpbuf)
+		err = sd_write(pintfhdl, addr, cnt, ptmpbuf);
+
 		rtw_mfree(ptmpbuf, cnt);
-
+	}
 	return err;
 }
 
@@ -1664,21 +1645,14 @@ void sd_int_dpc(PADAPTER padapter)
 #endif
 	if (pHalData->sdio_hisr & SDIO_HISR_TXERR)
 	{
-		u8 *status;
+		u8 status[4];
 		u32 addr;
 
-		status = rtw_malloc(4);
-		if (status)
-		{
-			addr = REG_TXDMA_STATUS;
-			HalSdioGetCmdAddr8723ASdio(padapter, WLAN_IOREG_DEVICE_ID, addr, &addr);
-			_sd_read(pintfhdl, addr, 4, status);
-			_sd_write(pintfhdl, addr, 4, status);
-			DBG_8192C("%s: SDIO_HISR_TXERR (0x%08x)\n", __func__, le32_to_cpu(*(u32*)status));
-			rtw_mfree(status, 4);
-		} else {
-			DBG_8192C("%s: SDIO_HISR_TXERR, but can't allocate memory to read status!\n", __func__);
-		}
+		addr = REG_TXDMA_STATUS;
+		HalSdioGetCmdAddr8723ASdio(padapter, WLAN_IOREG_DEVICE_ID, addr, &addr);
+		_sd_read(pintfhdl, addr, 4, status);
+		_sd_write(pintfhdl, addr, 4, status);
+		DBG_8192C("%s: SDIO_HISR_TXERR (0x%08x)\n", __func__, RTW_RL32(status));
 	}
 
 #ifdef CONFIG_INTERRUPT_BASED_TXBCN
@@ -1904,7 +1878,7 @@ u8 HalQueryTxBufferStatus8189ESdio(PADAPTER padapter)
 	NumOfFreePage = SdioLocalCmd53Read4Byte(padapter, SDIO_REG_FREE_TXPG);
 
 //	_enter_critical_bh(&phal->SdioTxFIFOFreePageLock, &irql);
-	memcpy(pHalData->SdioTxFIFOFreePage, &NumOfFreePage, 4);
+	RTW_WN32(pHalData->SdioTxFIFOFreePage, NumOfFreePage);
 	RT_TRACE(_module_hci_ops_c_, _drv_notice_,
 			("%s: Free page for HIQ(%#x),MIDQ(%#x),LOWQ(%#x),PUBQ(%#x)\n",
 			__FUNCTION__,
@@ -1941,13 +1915,10 @@ u8 RecvOnePkt(PADAPTER padapter, u32 size)
 	if(size) {
 		sdio_claim_host(func);
 		precvbuf = sd_recv_rxfifo(padapter, size);
-
 		if (precvbuf) {
 			//printk("Completed Recv One Pkt.\n");
 			sd_rxhandler(padapter, precvbuf);
 			res = _TRUE;
-		}else{
-			res = _FALSE;
 		}
 		sdio_release_host(func);
 	}
